@@ -124,9 +124,165 @@ function ui_hideLoading() {
   );
   SpreadsheetApp.getUi().showModalDialog(output, 'Cargando...');
 }
+function ui_createMenu() {}
 
 //#endregion
 
 //#region FIREBASE
+
+// https://github.com/grahamearley/FirestoreGoogleAppsScript
+// lib id: 1VUSl4b1r1eoNcRWotZM3e87ygkxvXltOgyDZhixqncz9lQ3MjfT1iKFwç
+
+function fire_get_credentials_(): any {
+  const cred = JSON.parse(
+    PropertiesService.getScriptProperties().getProperty('fire_contoan')
+  );
+  return {
+    private_key: cred.private_key,
+    client_email: cred.client_email,
+    project_id: cred.project_id,
+  };
+}
+function fire_get_firestore_(): any {
+  const cred = fire_get_credentials_();
+
+  return FirestoreApp.getFirestore(
+    cred.client_email,
+    cred.private_key,
+    cred.project_id
+  );
+}
+function fire_getUsers() {
+  const firestore = fire_get_firestore_();
+  const users = firestore.getDocuments('Users');
+  const new_users = [];
+
+  // FORMAT RECIVING DATA TO OBJECT ARRAY WITH MIN INFO
+  for (let i = 0; i < users.length; i++) {
+    const user = users[i]['fields'];
+    const new_user = {
+      id: user['id'],
+      name: user['name'] + ' ' + user['last_name'],
+      account_id: null,
+      account_value: null,
+    };
+
+    // GET ACCOUNT INFO FROM THE USER IF IT HAS ONE ASSIGNED
+    if (user['own_account']) {
+      const account = firestore
+        .query('Accounts')
+        .where('user_id', '==', new_user['id'])
+        .execute();
+
+      // CHECK IF AN ACCOUNT WAS FOUND
+      if (account.length > 0) {
+        new_user['account_id'] = account[0]['fields']['id'];
+        new_user['account_value'] = account[0]['fields']['value'];
+      }
+    }
+
+    new_users.push(new_user);
+  }
+  return new_users;
+}
+function fire_getAccounts() {
+  const firestore = fire_get_firestore_();
+  const accounts = firestore.getDocuments('Accounts');
+  const new_accounts = [];
+
+  // FORMAT RECIVING DATA TO OBJECT ARRAY WITH MIN INFO
+  for (let i = 0; i < accounts.length; i++) {
+    const account = accounts[i]['fields'];
+    const new_account = {
+      id: account['id'],
+      name: account['name'],
+      number: account['number'],
+      type: account['type'],
+      transactions: account['transactions_id'].length,
+      value: account['value'],
+    };
+    new_accounts.push(new_account);
+  }
+  return new_accounts;
+}
+function fire_getProjects() {
+  const firestore = fire_get_firestore_();
+  const projects = firestore.getDocuments('Projects');
+  const new_projects = [];
+
+  // FORMAT RECIVING DATA TO OBJECT ARRAY WITH MIN INFO
+  for (let i = 0; i < projects.length; i++) {
+    const project = projects[i]['fields'];
+    const new_project = {
+      id: project['id'],
+      title: project['title'],
+      description: project['description'],
+      department: project['department'],
+      type: project['type'],
+      project_id: project['project_id'],
+      intervention_id: project['intervention_id'],
+    };
+    new_projects.push(new_project);
+  }
+  return new_projects;
+}
+function fire_getMovements() {
+  const firestore = fire_get_firestore_();
+  const movs = firestore.getDocuments('Accounting');
+  const new_movs = [];
+
+  // FORMAT RECIVING DATA TO OBJECT ARRAY WITH MIN INFO
+  for (let i = 0; i < movs.length; i++) {
+    const mov = movs[i]['fields'];
+    const new_mov = {
+      id: mov['id'],
+      concept: mov['concept'],
+      creation_date: new Date(mov['creation_date']),
+      creator_user: mov['creator_user'],
+      execution_date: new Date(mov['execution_date']),
+      user_in_charge: mov['user_in_charge'],
+      type: mov['type'],
+      amount: mov['amount'],
+      vat: mov['vat'] / 100,
+      code: mov['code'],
+      origin: mov['origin'],
+      place: mov['place'],
+      project: mov['project'],
+      intervention: mov['intervention'] || null,
+      phase: mov['phase'] || null,
+      account_id: mov['account_id'],
+      target_id: mov['target_id'],
+      image: null,
+    };
+    if (mov['images'].length > 0) {
+      new_mov.image = mov['images']['0']['download_url'];
+    }
+    new_movs.push(new_mov);
+  }
+  return new_movs;
+}
+function fire_writeDataFromJson(
+  sheet: GoogleAppsScript.Spreadsheet.Sheet,
+  datas,
+  rows_above: number = 1,
+  colums_before: number = 0
+) {
+  const row_offset = 1;
+
+  // CLEAR THE HOLE SHEET BEFORE WRITING
+  //sheet.clear();
+
+  for (let i = 0; i < datas.length; i++) {
+    let j = colums_before + 1;
+    for (const key in datas[i]) {
+      if (datas[i].hasOwnProperty(key)) {
+        sheet
+          .getRange(i + rows_above + row_offset, j + colums_before)
+          .setValue(datas[i][key]);
+        j++;
+      }
+    }
+  }
+}
 
 //#endregion
