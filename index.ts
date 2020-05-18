@@ -152,7 +152,31 @@ function fire_get_firestore_(): any {
     cred.project_id
   );
 }
-function fire_getUsers() {
+function fire_writeDataFromJson(
+  sheet: GoogleAppsScript.Spreadsheet.Sheet,
+  datas,
+  rows_above: number = 1,
+  colums_before: number = 0
+) {
+  const row_offset = 1;
+
+  // CLEAR THE HOLE SHEET BEFORE WRITING
+  //sheet.clear();
+
+  for (let i = 0; i < datas.length; i++) {
+    let j = colums_before + 1;
+    for (const key in datas[i]) {
+      if (datas[i].hasOwnProperty(key)) {
+        sheet
+          .getRange(i + rows_above + row_offset, j + colums_before)
+          .setValue(datas[i][key]);
+        j++;
+      }
+    }
+  }
+}
+//#region ACCOUNTING
+function fire_acc_getUsers() {
   const firestore = fire_get_firestore_();
   const users = firestore.getDocuments('Users');
   const new_users = [];
@@ -185,7 +209,7 @@ function fire_getUsers() {
   }
   return new_users;
 }
-function fire_getAccounts() {
+function fire_acc_getAccounts() {
   const firestore = fire_get_firestore_();
   const accounts = firestore.getDocuments('Accounts');
   const new_accounts = [];
@@ -205,7 +229,7 @@ function fire_getAccounts() {
   }
   return new_accounts;
 }
-function fire_getProjects() {
+function fire_acc_getProjects() {
   const firestore = fire_get_firestore_();
   const projects = firestore.getDocuments('Projects');
   const new_projects = [];
@@ -226,7 +250,7 @@ function fire_getProjects() {
   }
   return new_projects;
 }
-function fire_getMovements() {
+function fire_acc_getMovements() {
   const firestore = fire_get_firestore_();
   const movs = firestore.getDocuments('Accounting');
   const new_movs = [];
@@ -261,28 +285,109 @@ function fire_getMovements() {
   }
   return new_movs;
 }
-function fire_writeDataFromJson(
+//#endregion
+//#region NIKARIT
+function fire_nik_getUsers() {
+  const firestore = fire_get_firestore_();
+  const users = firestore.getDocuments('Users');
+  const new_users = [];
+
+  // FORMAT RECIVING DATA TO OBJECT ARRAY WITH MIN INFO
+  for (let i = 0; i < users.length; i++) {
+    const user = users[i]['fields'];
+    if (user['has_inventory']) {
+      const new_user = {
+        id: user['id'],
+        name: user['name'] + ' ' + user['last_name'],
+      };
+      new_users.push(new_user);
+    }
+  }
+  return new_users;
+}
+function fire_nik_getCatalogue() {
+  const firestore = fire_get_firestore_();
+  const products = firestore.getDocuments('Nikarit_Catalogue');
+  const new_products = [];
+
+  // FORMAT RECIVING DATA TO OBJECT ARRAY WITH MIN INFO
+  for (let i = 0; i < products.length; i++) {
+    const product = products[i]['fields'];
+    const new_product = {
+      id: product['id'],
+      name: product['name'],
+      sell_price: product['sell_price'],
+    };
+    new_products.push(new_product);
+  }
+  return new_products;
+}
+
+function fire_nik_getInventory() {
+  const firestore = fire_get_firestore_();
+  const inventories = firestore.getDocuments('Nikarit_Inventory');
+  const new_inventories = [];
+
+  // FORMAT RECIVING DATA TO OBJECT ARRAY WITH MIN INFO
+  for (let i = 0; i < inventories.length; i++) {
+    const inventory = inventories[i]['fields'];
+
+    const new_inventory = {
+      id: inventory['id'],
+      name: inventory['name'],
+      user_id: inventory['user_id'],
+      products: inventory['products'],
+    };
+    new_inventories.push(new_inventory);
+  }
+  return new_inventories;
+}
+function fire_nik_writeInventory(
   sheet: GoogleAppsScript.Spreadsheet.Sheet,
-  datas,
-  rows_above: number = 1,
-  colums_before: number = 0
+  inventories: any[]
 ) {
+  const products = fire_nik_getCatalogue();
+
+  const colums_offset = 1;
   const row_offset = 1;
 
-  // CLEAR THE HOLE SHEET BEFORE WRITING
-  //sheet.clear();
+  // SET PRODUCT HEADERS
+  for (let i = 1; i <= products.length; i++) {
+    const product = products[i];
+    if (product) {
+      sheet.getRange(1, i + colums_offset).setValue(product.name || '');
+    }
+  }
+  // SET INVENTORY HEADERS
+  for (let i = 1; i <= inventories.length; i++) {
+    const inventory = inventories[i];
+    if (inventory) {
+      sheet.getRange(i + row_offset, 1).setValue(inventory.name || '');
+    }
+  }
 
-  for (let i = 0; i < datas.length; i++) {
-    let j = colums_before + 1;
-    for (const key in datas[i]) {
-      if (datas[i].hasOwnProperty(key)) {
-        sheet
-          .getRange(i + rows_above + row_offset, j + colums_before)
-          .setValue(datas[i][key]);
-        j++;
+  // LOOP THROUGH INVENTORIES
+  for (let j = 1; j <= inventories.length; j++) {
+    const inventory = inventories[j];
+    if (inventory) {
+      for (let k = 1; k <= products.length; k++) {
+        const product = products[k];
+        if (product) {
+          const inv_pro = inventory.products.find(
+            (pro) => pro.type_id === product.id
+          );
+          if (inv_pro) {
+            sheet
+              .getRange(j + row_offset, k + colums_offset)
+              .setValue(inv_pro.quantity);
+          } else {
+            sheet.getRange(j + row_offset, k + colums_offset).setValue(0);
+          }
+        }
       }
     }
   }
 }
+//#endregion
 
 //#endregion
