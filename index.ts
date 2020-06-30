@@ -245,6 +245,10 @@ function fire_acc_getProjects() {
       type: project['type'],
       project_id: project['project_id'],
       intervention_id: project['intervention_id'],
+      progress: project['progress'],
+      expenses_amount: project['expenses_amount'],
+      budget: project['budget'],
+      is_active: project['is_active'],
     };
     new_projects.push(new_project);
   }
@@ -278,7 +282,7 @@ function fire_acc_getMovements() {
       target_id: mov['target_id'],
       image: null,
     };
-    if (mov['images'].length > 0) {
+    if (mov['images'] && mov['images'].length > 0) {
       new_mov.image = mov['images']['0']['download_url'];
     }
     new_movs.push(new_mov);
